@@ -13,6 +13,11 @@ const app = express();
 app.set("trust proxy", 1);
 
 // =====================
+// MIDDLEWARE
+// =====================
+app.use(express.json());
+
+// =====================
 // ALLOWED ORIGINS
 // =====================
 const allowedOrigins = [
@@ -28,7 +33,7 @@ app.use(
   cors({
     origin: (origin, callback) => {
 
-      // Allow Postman / mobile apps / server requests
+      // Allow Postman / mobile apps
       if (!origin) {
         return callback(null, true);
       }
@@ -46,21 +51,16 @@ app.use(
       return callback(new Error("Not allowed by CORS"));
     },
 
-    methods: ["GET", "POST", "PUT", "DELETE"],
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
 
     allowedHeaders: [
       "Content-Type",
-      "Authorization"
+      "Authorization",
     ],
 
     credentials: true,
   })
 );
-
-// =====================
-// MIDDLEWARE
-// =====================
-app.use(express.json());
 
 // =====================
 // DATABASE CONNECTION
@@ -85,12 +85,12 @@ mongoose
 // ROUTES
 // =====================
 
-// Health check
+// Home route
 app.get("/", (req, res) => {
   res.send("SASH Learning Hub API running 🚀");
 });
 
-// API test
+// Test route
 app.get("/api/test", (req, res) => {
   res.json({
     success: true,
@@ -99,7 +99,7 @@ app.get("/api/test", (req, res) => {
 });
 
 // =====================
-// AUTH ROUTES (TEMP)
+// AUTH ROUTES
 // =====================
 
 // REGISTER
@@ -114,7 +114,7 @@ app.post("/api/auth/register", (req, res) => {
     });
   }
 
-  return res.json({
+  return res.status(200).json({
     success: true,
     message: "User registered successfully",
     user: {
@@ -124,6 +124,7 @@ app.post("/api/auth/register", (req, res) => {
     },
     token: "demo_token",
   });
+
 });
 
 // LOGIN
@@ -138,7 +139,7 @@ app.post("/api/auth/login", (req, res) => {
     });
   }
 
-  return res.json({
+  return res.status(200).json({
     success: true,
     message: "Login successful",
     user: {
@@ -146,6 +147,31 @@ app.post("/api/auth/login", (req, res) => {
       role: "student",
     },
     token: "demo_token",
+  });
+
+});
+
+// =====================
+// PAYMENT ROUTE
+// =====================
+
+app.post("/api/payments/initialize", (req, res) => {
+
+  return res.status(200).json({
+    success: true,
+    message: "Payment initialized successfully",
+    authorization_url: "https://paystack.com/pay/demo-payment",
+  });
+
+});
+
+// =====================
+// 404 HANDLER
+// =====================
+app.use((req, res) => {
+  res.status(404).json({
+    success: false,
+    message: "Route not found",
   });
 });
 
