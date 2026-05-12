@@ -8,12 +8,12 @@ dotenv.config();
 const app = express();
 
 // =====================
-// TRUST PROXY (IMPORTANT FOR RENDER)
+// TRUST PROXY
 // =====================
 app.set("trust proxy", 1);
 
 // =====================
-// CORS CONFIG (FIXED PRODUCTION SAFE)
+// ALLOWED ORIGINS
 // =====================
 const allowedOrigins = [
   "http://localhost:5173",
@@ -21,12 +21,19 @@ const allowedOrigins = [
   "https://sash-learning-hu.vercel.app",
 ];
 
+// =====================
+// CORS CONFIG
+// =====================
 app.use(
   cors({
-    origin: function (origin, callback) {
-      // allow tools like Postman or server-to-server calls
-      if (!origin) return callback(null, true);
+    origin: (origin, callback) => {
 
+      // Allow Postman / mobile apps / server requests
+      if (!origin) {
+        return callback(null, true);
+      }
+
+      // Allow localhost + Vercel
       if (
         allowedOrigins.includes(origin) ||
         origin.endsWith(".vercel.app")
@@ -34,21 +41,21 @@ app.use(
         return callback(null, true);
       }
 
-      console.log("❌ Blocked CORS origin:", origin);
+      console.log("❌ Blocked by CORS:", origin);
 
       return callback(new Error("Not allowed by CORS"));
     },
 
-    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    methods: ["GET", "POST", "PUT", "DELETE"],
 
-    allowedHeaders: ["Content-Type", "Authorization"],
+    allowedHeaders: [
+      "Content-Type",
+      "Authorization"
+    ],
 
     credentials: true,
   })
 );
-
-// handle preflight requests explicitly
-app.options("*", cors());
 
 // =====================
 // MIDDLEWARE
@@ -56,52 +63,88 @@ app.options("*", cors());
 app.use(express.json());
 
 // =====================
-// DATABASE
+// DATABASE CONNECTION
 // =====================
 const MONGO_URI = process.env.MONGO_URI;
 
 if (!MONGO_URI) {
-  console.error("❌ MONGO_URI missing");
+  console.error("❌ MONGO_URI missing in .env");
   process.exit(1);
 }
 
 mongoose
   .connect(MONGO_URI)
-  .then(() => console.log("MongoDB connected 🟢"))
-  .catch((err) => console.error("MongoDB error 🔴:", err.message));
+  .then(() => {
+    console.log("MongoDB connected successfully 🟢");
+  })
+  .catch((err) => {
+    console.error("MongoDB connection error 🔴:", err.message);
+  });
 
 // =====================
 // ROUTES
 // =====================
+
+// Health check
 app.get("/", (req, res) => {
   res.send("SASH Learning Hub API running 🚀");
 });
 
+// API test
 app.get("/api/test", (req, res) => {
-  res.json({ success: true });
+  res.json({
+    success: true,
+    message: "Backend connected successfully",
+  });
 });
 
 // =====================
-// AUTH (TEMP)
+// AUTH ROUTES (TEMP)
 // =====================
-app.post("/api/auth/register", (req, res) => {
-  const { fullName, email } = req.body;
 
-  res.json({
+// REGISTER
+app.post("/api/auth/register", (req, res) => {
+
+  const { fullName, email, password } = req.body;
+
+  if (!fullName || !email || !password) {
+    return res.status(400).json({
+      success: false,
+      message: "All fields are required",
+    });
+  }
+
+  return res.json({
     success: true,
-    message: "User registered",
-    user: { fullName, email, role: "student" },
+    message: "User registered successfully",
+    user: {
+      fullName,
+      email,
+      role: "student",
+    },
     token: "demo_token",
   });
 });
 
+// LOGIN
 app.post("/api/auth/login", (req, res) => {
-  const { email } = req.body;
 
-  res.json({
+  const { email, password } = req.body;
+
+  if (!email || !password) {
+    return res.status(400).json({
+      success: false,
+      message: "Email and password required",
+    });
+  }
+
+  return res.json({
     success: true,
-    message: "Login success",
-    user: { email, role: "student" },
+    message: "Login successful",
+    user: {
+      email,
+      role: "student",
+    },
     token: "demo_token",
   });
 });
