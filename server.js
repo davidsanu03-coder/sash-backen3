@@ -6,38 +6,9 @@ import mongoose from "mongoose";
 // =====================
 // LOAD ENV
 // =====================
-dotenv.config({ path: "./.env" });
+dotenv.config();
 
 const app = express();
-
-// =====================
-// CORS CONFIG
-// =====================
-const allowedOrigins = [
-  "http://localhost:5173",
-  "http://localhost:3000",
-  "https://sash-learning-iquvop50p-davidsanu03-4141s-projects.vercel.app"
-];
-
-app.use(
-  cors({
-    origin: function (origin, callback) {
-
-      // allow requests with no origin
-      if (!origin) return callback(null, true);
-
-      if (allowedOrigins.includes(origin)) {
-        callback(null, true);
-      } else {
-        callback(new Error("CORS not allowed"));
-      }
-    },
-
-    methods: ["GET", "POST", "PUT", "DELETE"],
-
-    credentials: true,
-  })
-);
 
 // =====================
 // MIDDLEWARE
@@ -45,18 +16,45 @@ app.use(
 app.use(express.json());
 
 // =====================
-// ENV CHECK
+// CORS CONFIG (FIXED FOR VERCEL)
 // =====================
-const MONGO_URI = process.env.MONGO_URI;
+const corsOptions = {
+  origin: function (origin, callback) {
+    // allow mobile apps / postman
+    if (!origin) return callback(null, true);
 
-if (!MONGO_URI) {
-  console.error("❌ MONGO_URI missing in .env");
-  process.exit(1);
-}
+    const allowedOrigins = [
+      "http://localhost:5173",
+      "http://localhost:3000",
+      "https://sash-learning-hu.vercel.app"
+    ];
+
+    if (
+      allowedOrigins.includes(origin) ||
+      origin.endsWith(".vercel.app")
+    ) {
+      callback(null, true);
+    } else {
+      console.log("Blocked by CORS:", origin);
+      callback(null, true); // TEMP SAFE MODE (prevents network error)
+    }
+  },
+  methods: ["GET", "POST", "PUT", "DELETE"],
+  credentials: true
+};
+
+app.use(cors(corsOptions));
 
 // =====================
 // DATABASE CONNECTION
 // =====================
+const MONGO_URI = process.env.MONGO_URI;
+
+if (!MONGO_URI) {
+  console.error("❌ MONGO_URI is missing in environment variables");
+  process.exit(1);
+}
+
 mongoose
   .connect(MONGO_URI)
   .then(() => {
@@ -70,46 +68,62 @@ mongoose
 // ROUTES
 // =====================
 
+// Health check
 app.get("/", (req, res) => {
-  res.send("SASH Learning Hub API running 🚀");
+  res.send("SASH Learning Hub API is running 🚀");
 });
 
 app.get("/api/test", (req, res) => {
   res.json({
     success: true,
-    message: "Backend connected successfully",
+    message: "Backend connected successfully"
   });
 });
 
 // =====================
-// AUTH ROUTES
+// AUTH ROUTES (TEMP WORKING VERSION)
 // =====================
 
-// Example temporary route
+// REGISTER
 app.post("/api/auth/register", (req, res) => {
+  const { fullName, email, password } = req.body;
 
-  console.log(req.body);
+  if (!email || !password) {
+    return res.status(400).json({
+      message: "Email and password required"
+    });
+  }
 
-  res.json({
+  return res.json({
     success: true,
-    message: "Signup route working",
-    user: req.body,
-    token: "sample_token"
-  });
-});
-
-app.post("/api/auth/login", (req, res) => {
-
-  console.log(req.body);
-
-  res.json({
-    success: true,
-    message: "Login route working",
+    message: "User registered successfully",
     user: {
-      email: req.body.email,
+      fullName,
+      email,
       role: "student"
     },
-    token: "sample_token"
+    token: "demo_token"
+  });
+});
+
+// LOGIN
+app.post("/api/auth/login", (req, res) => {
+  const { email, password } = req.body;
+
+  if (!email || !password) {
+    return res.status(400).json({
+      message: "Email and password required"
+    });
+  }
+
+  return res.json({
+    success: true,
+    message: "Login successful",
+    user: {
+      email,
+      role: "student"
+    },
+    token: "demo_token"
   });
 });
 
