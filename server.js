@@ -3,12 +3,52 @@ import cors from "cors";
 import dotenv from "dotenv";
 import mongoose from "mongoose";
 
-// =====================
-// LOAD ENV
-// =====================
 dotenv.config();
 
 const app = express();
+
+// =====================
+// TRUST PROXY (IMPORTANT FOR RENDER)
+// =====================
+app.set("trust proxy", 1);
+
+// =====================
+// CORS CONFIG (FIXED PRODUCTION SAFE)
+// =====================
+const allowedOrigins = [
+  "http://localhost:5173",
+  "http://localhost:3000",
+  "https://sash-learning-hu.vercel.app",
+];
+
+app.use(
+  cors({
+    origin: function (origin, callback) {
+      // allow tools like Postman or server-to-server calls
+      if (!origin) return callback(null, true);
+
+      if (
+        allowedOrigins.includes(origin) ||
+        origin.endsWith(".vercel.app")
+      ) {
+        return callback(null, true);
+      }
+
+      console.log("❌ Blocked CORS origin:", origin);
+
+      return callback(new Error("Not allowed by CORS"));
+    },
+
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+
+    allowedHeaders: ["Content-Type", "Authorization"],
+
+    credentials: true,
+  })
+);
+
+// handle preflight requests explicitly
+app.options("*", cors());
 
 // =====================
 // MIDDLEWARE
@@ -16,119 +56,58 @@ const app = express();
 app.use(express.json());
 
 // =====================
-// CORS CONFIG (FIXED FOR VERCEL)
-// =====================
-const corsOptions = {
-  origin: function (origin, callback) {
-    // allow mobile apps / postman
-    if (!origin) return callback(null, true);
-
-    const allowedOrigins = [
-      "http://localhost:5173",
-      "http://localhost:3000",
-      "https://sash-learning-hu.vercel.app"
-    ];
-
-    if (
-      allowedOrigins.includes(origin) ||
-      origin.endsWith(".vercel.app")
-    ) {
-      callback(null, true);
-    } else {
-      console.log("Blocked by CORS:", origin);
-      callback(null, true); // TEMP SAFE MODE (prevents network error)
-    }
-  },
-  methods: ["GET", "POST", "PUT", "DELETE"],
-  credentials: true
-};
-
-app.use(cors(corsOptions));
-
-// =====================
-// DATABASE CONNECTION
+// DATABASE
 // =====================
 const MONGO_URI = process.env.MONGO_URI;
 
 if (!MONGO_URI) {
-  console.error("❌ MONGO_URI is missing in environment variables");
+  console.error("❌ MONGO_URI missing");
   process.exit(1);
 }
 
 mongoose
   .connect(MONGO_URI)
-  .then(() => {
-    console.log("MongoDB connected successfully 🟢");
-  })
-  .catch((err) => {
-    console.error("MongoDB connection error 🔴:", err.message);
-  });
+  .then(() => console.log("MongoDB connected 🟢"))
+  .catch((err) => console.error("MongoDB error 🔴:", err.message));
 
 // =====================
 // ROUTES
 // =====================
-
-// Health check
 app.get("/", (req, res) => {
-  res.send("SASH Learning Hub API is running 🚀");
+  res.send("SASH Learning Hub API running 🚀");
 });
 
 app.get("/api/test", (req, res) => {
+  res.json({ success: true });
+});
+
+// =====================
+// AUTH (TEMP)
+// =====================
+app.post("/api/auth/register", (req, res) => {
+  const { fullName, email } = req.body;
+
   res.json({
     success: true,
-    message: "Backend connected successfully"
+    message: "User registered",
+    user: { fullName, email, role: "student" },
+    token: "demo_token",
   });
 });
 
-// =====================
-// AUTH ROUTES (TEMP WORKING VERSION)
-// =====================
-
-// REGISTER
-app.post("/api/auth/register", (req, res) => {
-  const { fullName, email, password } = req.body;
-
-  if (!email || !password) {
-    return res.status(400).json({
-      message: "Email and password required"
-    });
-  }
-
-  return res.json({
-    success: true,
-    message: "User registered successfully",
-    user: {
-      fullName,
-      email,
-      role: "student"
-    },
-    token: "demo_token"
-  });
-});
-
-// LOGIN
 app.post("/api/auth/login", (req, res) => {
-  const { email, password } = req.body;
+  const { email } = req.body;
 
-  if (!email || !password) {
-    return res.status(400).json({
-      message: "Email and password required"
-    });
-  }
-
-  return res.json({
+  res.json({
     success: true,
-    message: "Login successful",
-    user: {
-      email,
-      role: "student"
-    },
-    token: "demo_token"
+    message: "Login success",
+    user: { email, role: "student" },
+    token: "demo_token",
   });
 });
 
 // =====================
-// SERVER START
+// START SERVER
 // =====================
 const PORT = process.env.PORT || 5000;
 
